@@ -3,13 +3,9 @@ import { toast, Toaster } from "sonner";
 import { useTranslation } from "react-i18next";
 import { listen } from "@tauri-apps/api/event";
 import { platform } from "@tauri-apps/plugin-os";
-import {
-  checkAccessibilityPermission,
-  checkMicrophonePermission,
-} from "tauri-plugin-macos-permissions-api";
+import { checkMicrophonePermission } from "tauri-plugin-macos-permissions-api";
 import { ModelStateEvent, RecordingErrorEvent } from "./lib/types/events";
 import "./App.css";
-import AccessibilityPermissions from "./components/AccessibilityPermissions";
 import SecureInputWarning from "./components/SecureInputWarning";
 import Footer from "./components/footer";
 import Onboarding, { AccessibilityOnboarding } from "./components/onboarding";
@@ -58,14 +54,18 @@ function App() {
     initializeRTL(i18n.language);
   }, [i18n.language]);
 
-  // Initialize Enigo, shortcuts, and refresh audio devices when main app loads
+  // Initialize input handling and refresh audio devices when main app loads
   useEffect(() => {
     if (onboardingStep === "done" && !hasCompletedPostOnboardingInit.current) {
       hasCompletedPostOnboardingInit.current = true;
-      Promise.all([
-        commands.initializeEnigo(),
-        commands.initializeShortcuts(),
-      ]).catch((e) => {
+      const initialization =
+        platform() === "macos"
+          ? commands.initializeShortcuts()
+          : Promise.all([
+              commands.initializeEnigo(),
+              commands.initializeShortcuts(),
+            ]);
+      initialization.catch((e) => {
         console.warn("Failed to initialize:", e);
       });
       refreshAudioDevices();
@@ -195,11 +195,8 @@ function App() {
 
         if (currentPlatform === "macos") {
           try {
-            const [hasAccessibility, hasMicrophone] = await Promise.all([
-              checkAccessibilityPermission(),
-              checkMicrophonePermission(),
-            ]);
-            if (!hasAccessibility || !hasMicrophone) {
+            const hasMicrophone = await checkMicrophonePermission();
+            if (!hasMicrophone) {
               await revealMainWindowForPermissions();
               setOnboardingStep("accessibility");
               return;
@@ -307,7 +304,6 @@ function App() {
           <div className="flex-1 flex flex-col overflow-hidden">
             <div className="flex-1 overflow-y-auto">
               <div className="flex flex-col items-center p-4 gap-4">
-                <AccessibilityPermissions />
                 <SecureInputWarning />
                 {renderSettingsContent(currentSection)}
               </div>

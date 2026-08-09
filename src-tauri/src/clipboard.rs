@@ -625,6 +625,14 @@ pub fn paste(text: String, app_handle: AppHandle) -> Result<(), String> {
         text
     };
 
+    if cfg!(target_os = "macos") {
+        info!("Copying transcription to clipboard without simulated input");
+        return app_handle
+            .clipboard()
+            .write_text(&text)
+            .map_err(|e| format!("Failed to copy to clipboard: {}", e));
+    }
+
     info!(
         "Using paste method: {:?}, delay before: {}ms, delay after: {}ms",
         paste_method, paste_delay_ms, paste_delay_after_ms

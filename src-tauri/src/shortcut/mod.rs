@@ -31,7 +31,13 @@ use crate::tray;
 
 /// Initialize shortcuts using the configured implementation
 pub fn init_shortcuts(app: &AppHandle) {
-    let user_settings = settings::load_or_create_app_settings(app);
+    let mut user_settings = settings::load_or_create_app_settings(app);
+
+    #[cfg(target_os = "macos")]
+    if user_settings.keyboard_implementation != KeyboardImplementation::Tauri {
+        user_settings.keyboard_implementation = KeyboardImplementation::Tauri;
+        settings::write_settings(app, user_settings.clone());
+    }
 
     // Check which implementation to use
     match user_settings.keyboard_implementation {
