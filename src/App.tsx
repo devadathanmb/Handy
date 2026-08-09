@@ -3,9 +3,13 @@ import { toast, Toaster } from "sonner";
 import { useTranslation } from "react-i18next";
 import { listen } from "@tauri-apps/api/event";
 import { platform } from "@tauri-apps/plugin-os";
-import { checkMicrophonePermission } from "tauri-plugin-macos-permissions-api";
+import {
+  checkAccessibilityPermission,
+  checkMicrophonePermission,
+} from "tauri-plugin-macos-permissions-api";
 import { ModelStateEvent, RecordingErrorEvent } from "./lib/types/events";
 import "./App.css";
+import AccessibilityPermissions from "./components/AccessibilityPermissions";
 import SecureInputWarning from "./components/SecureInputWarning";
 import Footer from "./components/footer";
 import Onboarding, { AccessibilityOnboarding } from "./components/onboarding";
@@ -60,7 +64,12 @@ function App() {
       hasCompletedPostOnboardingInit.current = true;
       const initialization =
         platform() === "macos"
-          ? commands.initializeShortcuts()
+          ? Promise.all([
+              checkAccessibilityPermission().then((granted) =>
+                granted ? commands.initializeEnigo() : undefined,
+              ),
+              commands.initializeShortcuts(),
+            ])
           : Promise.all([
               commands.initializeEnigo(),
               commands.initializeShortcuts(),
@@ -304,6 +313,7 @@ function App() {
           <div className="flex-1 flex flex-col overflow-hidden">
             <div className="flex-1 overflow-y-auto">
               <div className="flex flex-col items-center p-4 gap-4">
+                <AccessibilityPermissions />
                 <SecureInputWarning />
                 {renderSettingsContent(currentSection)}
               </div>

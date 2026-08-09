@@ -625,12 +625,15 @@ pub fn paste(text: String, app_handle: AppHandle) -> Result<(), String> {
         text
     };
 
-    if cfg!(target_os = "macos") {
-        info!("Copying transcription to clipboard without simulated input");
-        return app_handle
-            .clipboard()
-            .write_text(&text)
-            .map_err(|e| format!("Failed to copy to clipboard: {}", e));
+    if paste_method == PasteMethod::None {
+        info!("PasteMethod::None selected - skipping paste action");
+        if settings.clipboard_handling == ClipboardHandling::CopyToClipboard {
+            app_handle
+                .clipboard()
+                .write_text(&text)
+                .map_err(|e| format!("Failed to copy to clipboard: {}", e))?;
+        }
+        return Ok(());
     }
 
     info!(
@@ -650,7 +653,7 @@ pub fn paste(text: String, app_handle: AppHandle) -> Result<(), String> {
     // Perform the paste operation
     match paste_method {
         PasteMethod::None => {
-            info!("PasteMethod::None selected - skipping paste action");
+            unreachable!("PasteMethod::None returns before Enigo initialization");
         }
         PasteMethod::Direct => {
             paste_direct(

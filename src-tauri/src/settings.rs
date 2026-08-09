@@ -155,12 +155,20 @@ pub enum PasteMethod {
     ExternalScript,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum ClipboardHandling {
-    #[default]
     DontModify,
     CopyToClipboard,
+}
+
+impl Default for ClipboardHandling {
+    fn default() -> Self {
+        #[cfg(target_os = "macos")]
+        return ClipboardHandling::CopyToClipboard;
+        #[cfg(not(target_os = "macos"))]
+        return ClipboardHandling::DontModify;
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type, Default)]
@@ -191,19 +199,20 @@ pub enum KeyboardImplementation {
 
 impl Default for KeyboardImplementation {
     fn default() -> Self {
-        #[cfg(target_os = "linux")]
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
         return KeyboardImplementation::Tauri;
-        #[cfg(not(target_os = "linux"))]
+        #[cfg(not(any(target_os = "linux", target_os = "macos")))]
         return KeyboardImplementation::HandyKeys;
     }
 }
 
 impl Default for PasteMethod {
     fn default() -> Self {
-        // Default to CtrlV for macOS and Windows, Direct for Linux
+        #[cfg(target_os = "macos")]
+        return PasteMethod::None;
         #[cfg(target_os = "linux")]
         return PasteMethod::Direct;
-        #[cfg(not(target_os = "linux"))]
+        #[cfg(not(any(target_os = "linux", target_os = "macos")))]
         return PasteMethod::CtrlV;
     }
 }
@@ -1144,6 +1153,22 @@ mod tests {
         assert!(!settings.audio_feedback);
         // Bindings default to empty; the load path merges the real defaults in.
         assert!(settings.bindings.is_empty());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_defaults_do_not_require_accessibility() {
+        let settings = get_default_settings();
+
+        assert_eq!(
+            settings.keyboard_implementation,
+            KeyboardImplementation::Tauri
+        );
+        assert_eq!(settings.paste_method, PasteMethod::None);
+        assert_eq!(
+            settings.clipboard_handling,
+            ClipboardHandling::CopyToClipboard
+        );
     }
 
     /// Frozen snapshot of a real v0.9.0-era settings store, as written to
